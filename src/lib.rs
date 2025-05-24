@@ -30,6 +30,7 @@ use rand::Rng;
 
 //TODO: Implement dirty-rectangle tracking
 
+
 struct Chunk {
     chunkID: usize,
     active: bool,
@@ -45,7 +46,8 @@ impl Chunk {
     }
 }
 
-struct ParticleGrid {
+#[wasm_bindgen]
+pub struct ParticleGrid {
     grid: Vec<Vec<i8>>,
     cols: usize,
     rows: usize,
@@ -88,40 +90,49 @@ pub struct JObject {
     active_particles: Vec<(usize,usize)>,
 }
 
+impl JObject {
+    fn new(rows: usize, cols: usize) -> Self {
+        
+        JObject { rows: rows, cols: cols, active_particles: Vec::new() }
+    }
+}
+
 ///Init function
 #[wasm_bindgen]
 pub fn wasm_bridge_init() {
     //Create bridge and establish values
-    let mut grid: ParticleGrid = ParticleGrid::new_grid(4);
-    let width: usize = 1200;
-    let height: usize = 800;
+    let cell_width = 4;
+    let mut grid: ParticleGrid = ParticleGrid::new_grid(cell_width);
+    let mut next_grid: ParticleGrid = ParticleGrid::new_grid(cell_width);
 
 
-    //in js run init
-
-    //then while !err {
-        //run update each frame
-    //}
+    //call the wrapper
+    wasm_bridge_update(grid, next_grid);
 }
 
 ///Web Assembly wrapping layer
-/// Essentially need to edit this dgrid function and then create a 
-/// wrapper function that js called that runs the whole simulation loop and at 
-/// the end returns a json object
+/// Essentially this is what the javascript layer will call every animation frame to keep the simulation going
 #[wasm_bindgen]
-pub fn wasm_bridge_update(mut grid: ParticleGrid, width: usize, height: usize) -> Result<JsValue, JsValue> {
+pub fn wasm_bridge_update(mut grid: ParticleGrid, mut next_grid: ParticleGrid) -> Result<JsValue, JsValue> {
 
-    let jsobj = JObject {
+    //keep ownership scope of grid variable
+    next_grid = eval_next(grid, next_grid);
 
-    };
+    //grid equals next
+    grid = next_grid;
+
+    let jsobj: JObject = create_json_object(&grid.grid, grid.rows, grid.cols);
     
     Ok(serde_wasm_bindgen::to_value(&jsobj)?)
 }
 
-
 /// Create a json object that can be sent to the visual layer (javascript) via wasm
 /// Computed every animation frame
-fn create_json_object(grid: &Vec<Vec<i8>>, w: f32, mut obj: JObject) -> JObject{
+fn create_json_object(grid: &Vec<Vec<i8>>, rows: usize, cols: usize) -> JObject{
+    
+    //create json obj
+    let mut obj: JObject = JObject::new(rows, cols);
+    
     for row in 0..grid.len() {
         for col in 0..grid[row].len() {
             if grid[row][col] == 1 { //is sand
