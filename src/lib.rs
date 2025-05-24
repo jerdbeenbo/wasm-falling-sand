@@ -1,3 +1,5 @@
+use core::error;
+
 use wasm_bindgen::prelude::*;
 use serde::{Serialize, Deserialize};
 use rand::Rng;
@@ -86,12 +88,28 @@ pub struct JObject {
     active_particles: Vec<(usize,usize)>,
 }
 
+///Init function
+#[wasm_bindgen]
+pub fn wasm_bridge_init() {
+    //Create bridge and establish values
+    let mut grid: ParticleGrid = ParticleGrid::new_grid(4);
+    let width: usize = 1200;
+    let height: usize = 800;
+
+
+    //in js run init
+
+    //then while !err {
+        //run update each frame
+    //}
+}
+
 ///Web Assembly wrapping layer
 /// Essentially need to edit this dgrid function and then create a 
 /// wrapper function that js called that runs the whole simulation loop and at 
 /// the end returns a json object
 #[wasm_bindgen]
-pub fn wasm_bridge() -> Result<JsValue, JsValue> {
+pub fn wasm_bridge_update(mut grid: ParticleGrid, width: usize, height: usize) -> Result<JsValue, JsValue> {
 
     let jsobj = JObject {
 
