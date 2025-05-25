@@ -1,8 +1,7 @@
-use core::error;
-
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use wasm_bindgen::prelude::*;
 use serde::{Serialize, Deserialize};
-use rand::Rng;
 
 /*
 
@@ -29,7 +28,6 @@ use rand::Rng;
 */
 
 //TODO: Implement dirty-rectangle tracking
-
 
 struct Chunk {
     chunkID: usize,
@@ -81,6 +79,8 @@ impl ParticleGrid {
 
 }
 
+static mut STATE: Option<(ParticleGrid, ParticleGrid)> = None;
+
 #[derive(Serialize, Deserialize)]
 pub struct JObject {
     //send dimension information
@@ -100,30 +100,46 @@ impl JObject {
 ///Init function
 #[wasm_bindgen]
 pub fn wasm_bridge_init() {
-    //Create bridge and establish values
-    let cell_width = 4;
-    let mut grid: ParticleGrid = ParticleGrid::new_grid(cell_width);
-    let mut next_grid: ParticleGrid = ParticleGrid::new_grid(cell_width);
 
-
-    //call the wrapper
-    wasm_bridge_update(grid, next_grid);
+    unsafe {
+        // Only the access to the static mut variable needs unsafe
+        if STATE.is_none() {
+            let grid = ParticleGrid::new_grid(4);
+            let next_grid = ParticleGrid::new_grid(4);
+            STATE = Some((grid, next_grid));
+            
+            // Optional: Add some test particles
+            if let Some((ref mut grid, _)) = STATE {
+                grid.grid[10][50] = 1;  // Add a sand particle
+                grid.grid[10][51] = 1;  // Add another one
+            }
+        }
+    }
 }
 
 ///Web Assembly wrapping layer
 /// Essentially this is what the javascript layer will call every animation frame to keep the simulation going
 #[wasm_bindgen]
-pub fn wasm_bridge_update(mut grid: ParticleGrid, mut next_grid: ParticleGrid) -> Result<JsValue, JsValue> {
+pub fn wasm_bridge_update() -> Result<JsValue, JsValue> {
 
-    //keep ownership scope of grid variable
-    next_grid = eval_next(grid, next_grid);
+    unsafe {
 
-    //grid equals next
-    grid = next_grid;
+        // Access the static variable safely
+        if let Some((ref mut grid, ref mut next_grid)) = STATE {
 
-    let jsobj: JObject = create_json_object(&grid.grid, grid.rows, grid.cols);
-    
-    Ok(serde_wasm_bindgen::to_value(&jsobj)?)
+            //keep ownership scope of grid variable
+            eval_next(grid, next_grid);
+
+            //grid equals next
+            std::mem::swap(grid, next_grid);
+
+            let jsobj: JObject = create_json_object(&grid.grid, grid.rows, grid.cols);
+            
+            Ok(serde_wasm_bindgen::to_value(&jsobj)?)
+        } else {
+                Err(JsValue::from_str("Failed to initialize simulation"))
+        }
+    }
 }
 
 /// Create a json object that can be sent to the visual layer (javascript) via wasm
@@ -154,7 +170,7 @@ fn create_json_object(grid: &Vec<Vec<i8>>, rows: usize, cols: usize) -> JObject{
 
 ///Function that takes both grids (borrowed reference to the first) and evaluates
 /// what the next grid for the next frame should look like based on CA rules
-fn eval_next(grid: ParticleGrid, mut next: ParticleGrid) -> ParticleGrid {
+fn eval_next(grid: &ParticleGrid, next: &mut ParticleGrid) {
     //Loop grid and retroactively assign next positions (only filling in 1s)
     for row in 0..grid.grid.len() {
         for col in 0..grid.grid[row].len() {
@@ -198,7 +214,13 @@ fn eval_next(grid: ParticleGrid, mut next: ParticleGrid) -> ParticleGrid {
                         //we aren't on an edge
                         //left or right entropy
                         let mut left = true;
-                        let num = rand::rng().random_range(0..2);
+                        
+                        // Create a simple pseudo-random based on position
+                        //web assembly doesn't like rand
+                        let mut hasher = DefaultHasher::new();
+                        (row, col).hash(&mut hasher);
+                        let num = (hasher.finish() % 2) as usize;
+                        
                         if num == 1 {
                             left = false;
                         }
@@ -227,8 +249,6 @@ fn eval_next(grid: ParticleGrid, mut next: ParticleGrid) -> ParticleGrid {
             }
         }
     }
-    
-    next            //return the vec to keep ownership
 }
 // async fn main() {
 
