@@ -108,11 +108,28 @@ pub fn wasm_bridge_init() {
             let next_grid = ParticleGrid::new_grid(4);
             STATE = Some((grid, next_grid));
             
-            // Optional: Add some test particles
-            if let Some((ref mut grid, _)) = STATE {
-                grid.grid[10][50] = 1;  // Add a sand particle
-                grid.grid[10][51] = 1;  // Add another one
+            // Add some test particles
+            // if let Some((ref mut grid, _)) = STATE {
+            //     grid.grid[10][50] = 1;  // Add a sand particle
+            //     grid.grid[10][51] = 1;  // Add another one
+            // }
+        }
+    }
+}
+
+#[wasm_bindgen]
+pub fn add_sand(row: usize, col: usize) -> Result<(), JsValue> {
+    unsafe {
+        if let Some((ref mut grid, _)) = STATE {
+            // Check bounds to prevent crashes
+            if row < grid.rows && col < grid.cols {
+                grid.grid[row][col] = 1;
+                Ok(())
+            } else {
+                Err(JsValue::from_str("Coordinates out of bounds"))
             }
+        } else {
+            Err(JsValue::from_str("Simulation not initialized"))
         }
     }
 }
@@ -171,6 +188,14 @@ fn create_json_object(grid: &Vec<Vec<i8>>, rows: usize, cols: usize) -> JObject{
 ///Function that takes both grids (borrowed reference to the first) and evaluates
 /// what the next grid for the next frame should look like based on CA rules
 fn eval_next(grid: &ParticleGrid, next: &mut ParticleGrid) {
+    
+     // Clear the next grid before evaluating new one since referencing global state variable
+    for row in &mut next.grid {
+        for cell in row {
+            *cell = 0;
+        }
+    }
+    
     //Loop grid and retroactively assign next positions (only filling in 1s)
     for row in 0..grid.grid.len() {
         for col in 0..grid.grid[row].len() {
