@@ -1,0 +1,24 @@
+{
+  "name": "wasm-falling-sand",
+  "type": "module",
+  "collaborators": [
+    "Jarred Jenkins <https://github.com/jerdbeenbo>"
+  ],
+  "description": "A falling sand particle SA simulation",
+  "version": "0.1.0",
+  "license": "MIT/Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jerdbeenbo/..."
+  },
+  "files": [
+    "wasm_falling_sand_bg.wasm",
+    "wasm_falling_sand.js",
+    "wasm_falling_sand.d.ts"
+  ],
+  "main": "wasm_falling_sand.js",
+  "types": "wasm_falling_sand.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
