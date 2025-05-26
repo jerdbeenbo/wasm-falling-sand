@@ -8,39 +8,43 @@ import init, {
 let canvas, ctx;
 const cellSize = 4;
 
-// Initialize everything from wasm
-await init();
-
 let lastSimulationTime = 0;
 const simulationInterval = 1000 / 60; // Run simulation 60 times per second
 function animate(currentTime) {
   // Only run simulation if enough time has passed
   if (currentTime - lastSimulationTime >= simulationInterval) {
     const data = wasm_bridge_update();
-    
+
     // Store the latest simulation data
     window.currentSimulationData = data;
     lastSimulationTime = currentTime;
   }
-  
+
   // Draw at full 60fps using the latest simulation data
   if (window.currentSimulationData) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    for (let i = 0; i < window.currentSimulationData.active_particles.length; i++) {
+
+    for (
+      let i = 0;
+      i < window.currentSimulationData.active_particles.length;
+      i++
+    ) {
       const [row, col] = window.currentSimulationData.active_particles[i];
       const x = col * cellSize;
       const y = row * cellSize;
-      
+
       ctx.fillStyle = "yellow";
       ctx.fillRect(x, y, cellSize, cellSize);
     }
   }
-  
+
   requestAnimationFrame(animate);
 }
 
 async function draw() {
+  // Initialize everything from wasm before committing to the draw
+  await init();
+
   wasm_bridge_init();
   canvas = document.getElementById("canvas");
   if (canvas.getContext) {
@@ -58,8 +62,8 @@ async function draw() {
 }
 
 function setupMouseInput() {
-  canvas.addEventListener('mousedown', handleMouse);
-  canvas.addEventListener('mousemove', handleMouseMove);
+  canvas.addEventListener("mousedown", handleMouse);
+  canvas.addEventListener("mousemove", handleMouseMove);
 }
 
 let isMouseDown = false;
@@ -76,7 +80,7 @@ function handleMouseMove(event) {
 }
 
 // Stop drawing when mouse is released
-document.addEventListener('mouseup', () => {
+document.addEventListener("mouseup", () => {
   isMouseDown = false;
 });
 
@@ -85,13 +89,13 @@ function addSandAtMouse(event) {
   const rect = canvas.getBoundingClientRect();
   const mouseX = event.clientX - rect.left;
   const mouseY = event.clientY - rect.top;
-  
+
   // Convert pixel coordinates to grid coordinates
   const col = Math.floor(mouseX / cellSize);
   const row = Math.floor(mouseY / cellSize);
-  
+
   console.log(`Adding sand at grid(${row}, ${col})`);
-  
+
   // Call your Rust function to add sand
   add_sand(row, col);
 }
